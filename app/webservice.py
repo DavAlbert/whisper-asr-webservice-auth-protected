@@ -1,11 +1,13 @@
 import importlib.metadata
 import os
+import base64
 from os import path
 from typing import BinaryIO, Union, Annotated
 
 import ffmpeg
 import numpy as np
-from fastapi import FastAPI, File, UploadFile, Query, applications
+from fastapi import FastAPI, File, UploadFile, Query, applications, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +36,21 @@ app = FastAPI(
         "url": projectMetadata['License']
     }
 )
+
+security = HTTPBasic()
+
+def get_current_username(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = os.getenv("USERNAME", "default_username")
+    correct_password = os.getenv("PASSWORD", "default_password")
+
+    correct_credentials = (credentials.username == correct_username) and (credentials.password == correct_password)
+    if not correct_credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 assets_path = os.getcwd() + "/swagger-ui-assets"
 if path.exists(assets_path + "/swagger-ui.css") and path.exists(assets_path + "/swagger-ui-bundle.js"):
@@ -70,7 +87,8 @@ async def asr(
                 include_in_schema=(True if ASR_ENGINE == "faster_whisper" else False)
             )] = False,
         word_timestamps: bool = Query(default=False, description="Word level timestamps"),
-        output: Union[str, None] = Query(default="txt", enum=["txt", "vtt", "srt", "tsv", "json"])
+        output: Union[str, None] = Query(default="txt", enum=["txt", "vtt", "srt", "tsv", "json"]),
+        username: str = Depends(get_current_username)
 ):
     result = transcribe(load_audio(audio_file.file, encode), task, language, initial_prompt, vad_filter, word_timestamps, output)
     return StreamingResponse(
@@ -85,7 +103,8 @@ async def asr(
 @app.post("/detect-language", tags=["Endpoints"])
 async def detect_language(
         audio_file: UploadFile = File(...),
-        encode: bool = Query(default=True, description="Encode audio first through ffmpeg")
+        encode: bool = Query(default=True, description="Encode audio first through ffmpeg"),
+        username: str = Depends(get_current_username)
 ):
     detected_lang_code = language_detection(load_audio(audio_file.file, encode))
     return {"detected_language": tokenizer.LANGUAGES[detected_lang_code], "language_code": detected_lang_code}
