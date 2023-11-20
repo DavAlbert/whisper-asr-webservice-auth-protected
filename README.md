@@ -18,13 +18,13 @@ Current release (v1.2.3) supports following whisper models:
 ### CPU
 
 ```sh
-docker run -d -p 9000:9000 -e ASR_MODEL=base -e ASR_ENGINE=openai_whisper onerahmet/openai-whisper-asr-webservice:latest
+docker run -d -p 9000:9000 -e ASR_MODEL=base -e ASR_ENGINE=openai_whisper -e USERNAME=admin -e PASSWORD=password garkolym/whisper-asr-webservice-auth-protected:v1
 ```
 
 ### GPU
 
 ```sh
-docker run -d --gpus all -p 9000:9000 -e ASR_MODEL=base -e ASR_ENGINE=openai_whisper onerahmet/openai-whisper-asr-webservice:latest-gpu
+docker run -d --gpus all -p 9000:9000 -e ASR_MODEL=base -e ASR_ENGINE=openai_whisper -e USERNAME=admin -e PASSWORD=password garkolym/whisper-asr-webservice-auth-protected:v1
 ```
 
 for more information:
